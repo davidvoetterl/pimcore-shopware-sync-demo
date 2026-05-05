@@ -14,7 +14,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 
 #[AsMessageHandler]
-final class SyncProductHandler
+class SyncProductHandler
 {
     public function __construct(
         private readonly ShopwareApiClient $client,
@@ -30,7 +30,7 @@ final class SyncProductHandler
             return;
         }
 
-        $product = Product::getById($message->productId);
+        $product = $this->findProduct($message->productId);
         if (!$product instanceof Product) {
             throw new UnrecoverableMessageHandlingException(
                 sprintf('Product #%d not found — skipping sync.', $message->productId),
@@ -55,6 +55,11 @@ final class SyncProductHandler
             'productId' => $product->getId(),
             'sku' => $product->getSku(),
         ]);
+    }
+
+    protected function findProduct(int $id): ?Product
+    {
+        return Product::getById($id);
     }
 
     private function handleDelete(SyncProductMessage $message): void
