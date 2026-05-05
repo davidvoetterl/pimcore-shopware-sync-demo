@@ -16,3 +16,6 @@ framework:
 
         routing:
             App\Message\SyncProductMessage: sync_products
+            # Same transport as SyncProductMessage — preserves FIFO order so an asset is always
+            # uploaded before the product that references it as cover image.
+            App\Message\SyncAssetMessage: sync_products

@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Service;
 use App\Service\ProductMapper;
 use App\Service\ShopwareApiClient;
 use Codeception\Test\Unit;
+use Pimcore\Model\Asset\Image;
 use Pimcore\Model\DataObject\Product;
 
 class ProductMapperTest extends Unit
@@ -92,6 +93,28 @@ class ProductMapperTest extends Unit
         $this->mapper->toShopwarePayload($product);
     }
 
+    public function testCoverIsMappedWhenImageIsSet(): void
+    {
+        $image = $this->createMock(Image::class);
+        $image->method('getId')->willReturn(42);
+
+        $product = $this->makeProduct(id: 1, sku: 'cover-test', image: $image);
+
+        $payload = $this->mapper->toShopwarePayload($product);
+
+        self::assertArrayHasKey('cover', $payload);
+        self::assertSame(md5('42'), $payload['cover']['mediaId']);
+    }
+
+    public function testCoverIsAbsentWhenImageIsNull(): void
+    {
+        $product = $this->makeProduct(id: 1, sku: 'no-cover', image: null);
+
+        $payload = $this->mapper->toShopwarePayload($product);
+
+        self::assertArrayNotHasKey('cover', $payload);
+    }
+
     // ------------------------------------------------------------------
 
     private function makeProduct(
@@ -101,6 +124,7 @@ class ProductMapperTest extends Unit
         ?string $description = null,
         float $price = 0.0,
         ?float $stock = 0.0,
+        ?Image $image = null,
     ): Product {
         $product = $this->createMock(Product::class);
         $product->method('getId')->willReturn($id);
@@ -109,6 +133,7 @@ class ProductMapperTest extends Unit
         $product->method('getDescription')->willReturn($description);
         $product->method('getPrice')->willReturn((string) $price);
         $product->method('getStock')->willReturn($stock);
+        $product->method('getImage')->willReturn($image);
         return $product;
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use Pimcore\Model\Asset\Image;
 use Pimcore\Model\DataObject\Product;
 
 class ProductMapper
@@ -24,7 +25,7 @@ class ProductMapper
 
         $price = (float) $product->getPrice();
 
-        return [
+        $payload = [
             'id' => $this->deterministicId($sku),
             'productNumber' => $sku,
             'name' => $product->getName() ?? $sku,
@@ -38,6 +39,23 @@ class ProductMapper
                 'linked' => false,
             ]],
         ];
+
+        $cover = $this->mapCoverImage($product);
+        if ($cover !== null) {
+            $payload['cover'] = $cover;
+        }
+
+        return $payload;
+    }
+
+    private function mapCoverImage(Product $product): ?array
+    {
+        $image = $product->getImage();
+        if (!$image instanceof Image) {
+            return null;
+        }
+
+        return ['mediaId' => md5((string) $image->getId())];
     }
 
     private function deterministicId(string $sku): string

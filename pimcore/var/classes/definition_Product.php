@@ -10,6 +10,7 @@
  * - description [textarea]
  * - price [numeric]
  * - stock [numeric]
+ * - image [image]
  */
 
 return \Pimcore\Model\DataObject\ClassDefinition::__set_state(array(
@@ -19,7 +20,7 @@ return \Pimcore\Model\DataObject\ClassDefinition::__set_state(array(
    'title' => '',
    'description' => '',
    'creationDate' => NULL,
-   'modificationDate' => 1777908970,
+   'modificationDate' => 1777984793,
    'userOwner' => 2,
    'userModification' => 2,
    'parentClass' => '',
@@ -206,6 +207,29 @@ return \Pimcore\Model\DataObject\ClassDefinition::__set_state(array(
              'decimalPrecision' => NULL,
              'width' => '',
              'defaultValueGenerator' => '',
+          )),
+          5 => 
+          \Pimcore\Model\DataObject\ClassDefinition\Data\Image::__set_state(array(
+             'name' => 'image',
+             'title' => 'Image',
+             'tooltip' => '',
+             'mandatory' => false,
+             'noteditable' => false,
+             'index' => false,
+             'locked' => false,
+             'style' => '',
+             'permissions' => NULL,
+             'fieldtype' => '',
+             'relationType' => false,
+             'invisible' => false,
+             'visibleGridView' => false,
+             'visibleSearch' => false,
+             'blockedVarsForExport' => 
+            array (
+            ),
+             'uploadPath' => '',
+             'width' => '',
+             'height' => '',
           )),
         ),
          'locked' => false,

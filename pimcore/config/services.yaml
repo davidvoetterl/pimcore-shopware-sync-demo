@@ -77,6 +77,10 @@ services:
             $clientId: '%env(SHOPWARE_CLIENT_ID)%'
             $clientSecret: '%env(SHOPWARE_CLIENT_SECRET)%'
 
+    App\Service\AssetMapper:
+        arguments:
+            $pimcorePublicUrl: '%env(PIMCORE_PUBLIC_URL)%'
+
 
 
     # Example custom templating helper
