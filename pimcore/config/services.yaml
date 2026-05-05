@@ -39,6 +39,13 @@ services:
         # this means you cannot fetch services directly from the container via $container->get()
         # if you need to do this, you can override this setting on individual services
         public: false
+    # makes all classes in src/ available as services (autowired, autoconfigured)
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Kernel.php'
+            - '../src/Message/'
+
     #
     # CONTROLLERS
     #

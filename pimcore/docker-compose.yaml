@@ -4,7 +4,9 @@ services:
         command: [ redis-server, --maxmemory 128mb, --maxmemory-policy volatile-lru, --save "" ]
 
     rabbitmq:
-        image: rabbitmq:alpine
+        image: rabbitmq:management-alpine
+        ports:
+            - "15672:15672"
         volumes:
             - pimcore-rabbitmq:/var/lib/rabbitmq/
 

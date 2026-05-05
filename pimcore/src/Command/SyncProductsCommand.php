@@ -4,111 +4,72 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Service\ShopwareApiClient;
+use App\Message\Operation;
+use App\Message\SyncProductMessage;
 use Pimcore\Model\DataObject\Product;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Messenger\MessageBusInterface;
 
 #[AsCommand(
     name: 'app:sync:products',
-    description: 'Sync Pimcore Product data objects to Shopware via the Admin API',
+    description: 'Backfill: dispatch a SyncProductMessage for every Pimcore Product (initial load / re-sync).',
 )]
 class SyncProductsCommand extends Command
 {
-    public function __construct(private readonly ShopwareApiClient $client)
+    public function __construct(private readonly MessageBusInterface $bus)
     {
         parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this
+            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Only dispatch the first N products')
+            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'List products that would be dispatched, without enqueueing');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-
-        $taxId = $this->fetchTaxId();
-        $currencyId = $this->fetchDefaultCurrencyId();
-        $io->writeln(sprintf('<info>Using taxId=%s, currencyId=%s</info>', $taxId, $currencyId));
+        $dryRun = (bool) $input->getOption('dry-run');
+        $limit = $input->getOption('limit');
 
         $listing = Product::getList();
         $listing->setUnpublished(true);
-        $products = $listing->load();
-
-        if ($products === []) {
-            $io->warning('No Product objects found in Pimcore.');
-            return Command::SUCCESS;
+        if ($limit !== null) {
+            $listing->setLimit((int) $limit);
         }
 
-        $payload = [];
-        foreach ($products as $product) {
+        $count = 0;
+        foreach ($listing as $product) {
             $sku = $product->getSku();
             if ($sku === null || $sku === '') {
                 $io->warning(sprintf('Skipping product #%d: missing SKU', $product->getId()));
                 continue;
             }
 
-            $price = (float) $product->getPrice();
-
-            $payload[] = [
-                'id' => md5($sku),
-                'productNumber' => $sku,
-                'name' => $product->getName() ?? $sku,
-                'description' => $product->getDescription(),
-                'stock' => (int) ($product->getStock() ?? 0),
-                'taxId' => $taxId,
-                'price' => [[
-                    'currencyId' => $currencyId,
-                    'gross' => $price,
-                    'net' => $price,
-                    'linked' => false,
-                ]],
-            ];
+            if ($dryRun) {
+                $io->writeln(sprintf('  would dispatch product #%d (sku=%s)', $product->getId(), $sku));
+            } else {
+                $this->bus->dispatch(new SyncProductMessage(
+                    productId: (int) $product->getId(),
+                    operation: Operation::Upsert,
+                    sku: $sku,
+                ));
+            }
+            $count++;
         }
 
-        if ($payload === []) {
-            $io->warning('No syncable products.');
-            return Command::SUCCESS;
-        }
+        $io->success(sprintf(
+            $dryRun ? 'Dry run: %d products would be dispatched.' : 'Dispatched %d sync messages. Worker will process them.',
+            $count,
+        ));
 
-        $this->client->request('POST', 'api/_action/sync', [
-            'sync-products' => [
-                'entity' => 'product',
-                'action' => 'upsert',
-                'payload' => $payload,
-            ],
-        ]);
-
-        $io->success(sprintf('Synced %d products to Shopware.', count($payload)));
         return Command::SUCCESS;
-    }
-
-    private function fetchTaxId(): string
-    {
-        $response = $this->client->request('POST', 'api/search/tax', ['limit' => 1]);
-        $taxes = $response['data'] ?? [];
-
-        if ($taxes === []) {
-            throw new \RuntimeException('No tax records found in Shopware. Create at least one tax in the admin first.');
-        }
-
-        return $taxes[0]['id'];
-    }
-
-    private function fetchDefaultCurrencyId(): string
-    {
-        $response = $this->client->request('POST', 'api/search/currency', [
-            'filter' => [
-                ['type' => 'equals', 'field' => 'isoCode', 'value' => 'EUR'],
-            ],
-            'limit' => 1,
-        ]);
-        $currencies = $response['data'] ?? [];
-
-        if ($currencies === []) {
-            throw new \RuntimeException('EUR currency not found in Shopware.');
-        }
-
-        return $currencies[0]['id'];
     }
 }
